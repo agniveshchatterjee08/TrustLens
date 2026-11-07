@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TrustLens – Phishing Link Checker</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="card">
+    <h1>Trust<span>Lens</span></h1>
+    <p class="subtitle">Paste a link to see if it has warning signs of phishing.</p>
+
+    <form id="check-form" novalidate>
+      <label for="link-input">Link to check</label>
+      <input
+        id="link-input"
+        type="text"
+        placeholder="https://example.com/page"
+        autocomplete="off"
+        autocapitalize="off"
+        spellcheck="false"
+      >
+      <button type="submit">Check</button>
+    </form>
+
+    <section id="result" aria-live="polite" hidden></section>
+
+    <p class="footnote">
+      TrustLens never opens your link and never sends it anywhere.
+      All checks run in your browser. A low score is not a guarantee.
+    </p>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
