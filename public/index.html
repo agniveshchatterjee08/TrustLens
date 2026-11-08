@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101827">
+  <title>TrustLens — AI Phishing Link Checker</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#"><span class="brand-mark">T</span> Trust<span>Lens</span></a>
+      <span class="top-tag"><i></i> AI-ASSISTED SECURITY</span>
+    </header>
+
+    <section class="hero">
+      <div class="eyebrow">LINK INTELLIGENCE</div>
+      <h1>Know before<br><span>you click.</span></h1>
+      <p class="subtitle">Check a URL for phishing warning signs using rule-based detection and an AI security analysis.</p>
+    </section>
+
+    <section class="panel">
+      <form id="check-form" novalidate>
+        <label for="link-input">URL to inspect</label>
+        <div class="input-row">
+          <span class="input-icon">↗</span>
+          <input id="link-input" type="text" placeholder="https://example.com/login" autocomplete="off" autocapitalize="off" spellcheck="false">
+          <button id="check-button" type="submit"><span>Analyze link</span><b>→</b></button>
+        </div>
+        <p class="helper">The link is analysed as text. TrustLens does not open or visit the submitted URL.</p>
+      </form>
+      <section id="result" aria-live="polite" hidden></section>
+    </section>
+
+    <section class="lower-grid">
+      <article class="info-card">
+        <div class="info-icon">⌁</div>
+        <h3>Layered detection</h3>
+        <p>Local URL rules are combined with an AI-generated explanation for a more useful assessment.</p>
+      </article>
+      <article class="info-card">
+        <div class="info-icon">✳</div>
+        <h3>Security assistant</h3>
+        <p>Ask general questions about phishing, suspicious messages, and what to do after a risky click.</p>
+      </article>
+    </section>
+
+    <section class="panel assistant-panel">
+      <div class="assistant-heading">
+        <div>
+          <div class="eyebrow">TRUSTLENS ASSISTANT</div>
+          <h2>Ask a security question</h2>
+        </div>
+        <span class="ai-chip">GEMINI AI</span>
+      </div>
+      <div id="chat-messages" class="chat-messages" aria-live="polite">
+        <div class="chat-bubble assistant">Hi! I can explain phishing warning signs and suggest practical next steps. What would you like to know?</div>
+      </div>
+      <form id="chat-form" class="chat-form">
+        <input id="chat-input" type="text" maxlength="1000" placeholder="e.g. What should I do if I entered my password?" autocomplete="off">
+        <button type="submit" aria-label="Send question">↑</button>
+      </form>
+    </section>
+
+    <footer>
+      <p><strong>Important:</strong> AI can make mistakes. A low-risk result does not prove a website is legitimate. Never enter passwords, OTPs, or banking details on a site you do not trust.</p>
+      <p>AI requests send the submitted URL and detection findings to the configured AI service. Do not submit private or confidential links.</p>
+    </footer>
+  </main>
+  <script src="script.js"></script>
+</body>
+</html>
