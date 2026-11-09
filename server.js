@@ -136,7 +136,7 @@ Do not call a URL safe or malicious with certainty based only on its text. Do no
       caveat: String(parsed.caveat || "").slice(0, 300)
     });
   } catch (error) {
-    console.error("AI analysis error:", String(error.message).slice(0, 300));
+    console.error("AI analysis error:", String(error.message).slice(0, 300), error.cause);
     return sendAiError(res, error, "AI analysis failed. Check your API key and connection, then try again.");
   }
 });
