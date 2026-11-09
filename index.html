@@ -1,37 +1,221 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>TrustLens – Phishing Link Checker</title>
-  <link rel="stylesheet" href="style.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TrustLens - Link Scanner</title>
+<style>
+:root{--bg:#070914;--cy:#27f5d0;--pk:#ff3d9a;--vi:#7b5cff;--tx:#e8ecff;--mu:#8b93b8;--ok:#2be28a;--wa:#ffb020;--bad:#ff4561}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{background:var(--bg);color:var(--tx);font:16px/1.5 system-ui,Segoe UI,Roboto,sans-serif;overflow-x:hidden}
+.bg{position:fixed;inset:0;z-index:-2;background:
+ linear-gradient(transparent 94%,rgba(39,245,208,.13) 95%) 0 0/100% 48px,
+ linear-gradient(90deg,transparent 94%,rgba(123,92,255,.13) 95%) 0 0/48px 100%;animation:grid 6s linear infinite}
+@keyframes grid{to{background-position:0 48px,48px 0}}
+.orb{position:fixed;z-index:-1;border-radius:50%;filter:blur(90px);opacity:.35;animation:float 9s ease-in-out infinite}
+.o1{width:340px;height:340px;background:var(--vi);top:-80px;left:-80px}
+.o2{width:300px;height:300px;background:var(--pk);bottom:-90px;right:-60px;animation-delay:-4s}
+@keyframes float{50%{transform:translate(40px,30px) scale(1.15)}}
+main{max-width:760px;margin:0 auto;padding:44px 18px 120px}
+header{text-align:center;margin-bottom:34px}
+.logo{font-size:clamp(34px,7vw,56px);font-weight:900;letter-spacing:.08em;text-shadow:0 0 22px rgba(39,245,208,.45);animation:fadeUp .8s both}
+.logo b{color:var(--cy)}
+.tag{margin:6px 0 0;color:var(--mu);letter-spacing:.14em;font-size:13px;text-transform:uppercase;animation:fadeUp .8s .15s both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}}
+.console>label{display:block;color:var(--cy);font-weight:800;letter-spacing:.2em;font-size:13px;margin-bottom:10px;animation:blink 2s steps(2) infinite}
+@keyframes blink{50%{opacity:.55}}
+.glow{padding:3px;border-radius:20px;background:linear-gradient(90deg,var(--cy),var(--vi),var(--pk),var(--cy));background-size:300% 100%;animation:slide 4s linear infinite,pulse 2.4s ease-in-out infinite}
+@keyframes slide{to{background-position:300% 0}}
+@keyframes pulse{50%{box-shadow:0 0 38px rgba(39,245,208,.55),0 0 70px rgba(123,92,255,.35)}}
+.field{display:flex;gap:8px;background:#0b0f24;border-radius:17px;padding:10px}
+.field input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:var(--tx);font-size:19px;padding:14px 12px}
+.field input::placeholder{color:#59618a}
+#go{border:0;border-radius:12px;padding:0 28px;font-weight:900;letter-spacing:.14em;font-size:16px;color:#04121a;background:linear-gradient(135deg,var(--cy),#7dffe9);cursor:pointer;transition:transform .15s,box-shadow .15s}
+#go:hover{transform:scale(1.06);box-shadow:0 0 24px rgba(39,245,208,.7)}
+#go:active{transform:scale(.96)}
+#go:disabled{opacity:.6;cursor:wait}
+.opts{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;margin-top:12px;color:var(--mu);font-size:13px}
+.opts label{display:flex;gap:7px;align-items:center;color:var(--tx);cursor:pointer}
+.res{margin-top:34px;display:grid;gap:16px}
+.card{background:rgba(14,19,44,.72);border:1px solid rgba(139,147,184,.2);border-radius:16px;padding:18px 20px;animation:pop .5s cubic-bezier(.2,1.4,.4,1) both}
+@keyframes pop{from{opacity:0;transform:scale(.92) translateY(10px)}}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.verdict{font-size:30px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
+.score{font:800 30px ui-monospace,Consolas,monospace}
+.score small{font-size:14px;color:var(--mu)}
+.lvl-low .verdict,.lvl-low .score{color:var(--ok)}
+.lvl-med .verdict,.lvl-med .score{color:var(--wa)}
+.lvl-high .verdict,.lvl-high .score{color:var(--bad)}
+.lvl-high{animation:pop .5s both,shake .5s .5s}
+@keyframes shake{25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
+.meter{display:grid;grid-template-columns:repeat(20,1fr);gap:4px;margin:14px 0 4px}
+.meter i{height:14px;border-radius:3px;background:#1a2040}
+.meter i.on{animation:seg .3s both}
+.lvl-low .meter i.on{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+.lvl-med .meter i.on{background:var(--wa);box-shadow:0 0 8px var(--wa)}
+.lvl-high .meter i.on{background:var(--bad);box-shadow:0 0 8px var(--bad)}
+@keyframes seg{from{transform:scaleY(0);opacity:0}}
+h3{margin:0 0 10px;font-size:13px;letter-spacing:.18em;color:var(--mu);text-transform:uppercase}
+ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+li{display:flex;gap:10px;align-items:flex-start;animation:fadeUp .4s both}
+li em{font-style:normal;font-weight:800;color:var(--pk);min-width:44px}
+.note{color:var(--mu);font-size:14px}
+.ai p{margin:6px 0}
+.ai .busy{height:5px;border-radius:5px;background:linear-gradient(90deg,transparent,var(--cy),transparent);background-size:50% 100%;background-repeat:no-repeat;animation:sweep 1.1s linear infinite;margin:10px 0}
+@keyframes sweep{from{background-position:-60% 0}to{background-position:160% 0}}
+.err{color:var(--wa)}
+#bub{position:fixed;right:20px;bottom:20px;width:62px;height:62px;border-radius:50%;border:0;cursor:pointer;font-size:28px;color:#04121a;background:linear-gradient(135deg,var(--pk),var(--vi));box-shadow:0 0 0 0 rgba(255,61,154,.6);animation:ring 2.2s infinite;z-index:20}
+@keyframes ring{70%{box-shadow:0 0 0 22px rgba(255,61,154,0)}}
+#chat{position:fixed;right:20px;bottom:96px;width:min(92vw,360px);height:min(70vh,460px);display:flex;flex-direction:column;background:#0b0f24;border:1px solid rgba(123,92,255,.5);border-radius:18px;box-shadow:0 10px 50px rgba(0,0,0,.6);z-index:20;transform-origin:bottom right;transition:transform .25s cubic-bezier(.2,1.3,.4,1),opacity .2s}
+#chat.shut{transform:scale(.2);opacity:0;pointer-events:none}
+#chat header{margin:0;padding:12px 16px;text-align:left;border-bottom:1px solid rgba(139,147,184,.2);font-weight:800;letter-spacing:.1em;display:flex;justify-content:space-between}
+#chat header button{background:none;border:0;color:var(--mu);font-size:20px;cursor:pointer}
+#msgs{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:8px}
+.m{max-width:85%;padding:9px 13px;border-radius:14px;font-size:14px;white-space:pre-wrap;word-wrap:break-word;animation:pop .3s both}
+.m.bot{background:#161c3d;align-self:flex-start;border-bottom-left-radius:4px}
+.m.me{background:linear-gradient(135deg,var(--vi),var(--pk));align-self:flex-end;border-bottom-right-radius:4px}
+.dots span{display:inline-block;width:7px;height:7px;margin:0 2px;border-radius:50%;background:var(--mu);animation:bounce 1s infinite}
+.dots span:nth-child(2){animation-delay:.15s}.dots span:nth-child(3){animation-delay:.3s}
+@keyframes bounce{40%{transform:translateY(-6px)}}
+#cf{display:flex;gap:8px;padding:10px;border-top:1px solid rgba(139,147,184,.2)}
+#cf input{flex:1;min-width:0;background:#10163a;border:1px solid rgba(139,147,184,.25);border-radius:10px;color:var(--tx);padding:10px;font-size:14px;outline:0}
+#cf button{border:0;border-radius:10px;padding:0 14px;font-weight:800;background:var(--cy);color:#04121a;cursor:pointer}
+@media(max-width:520px){#go{padding:0 16px}.field input{font-size:16px}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
 </head>
 <body>
-  <main class="card">
-    <h1>Trust<span>Lens</span></h1>
-    <p class="subtitle">Paste a link to see if it has warning signs of phishing.</p>
+<div class="bg"></div><div class="orb o1"></div><div class="orb o2"></div>
+<main>
+ <header><div class="logo">TRUST<b>LENS</b></div><p class="tag">Mission: spot the fake link before it spots you</p></header>
+ <section class="console">
+  <label for="u">&#9654; PASTE A LINK</label>
+  <div class="glow"><div class="field"><input id="u" type="text" maxlength="2048" autocomplete="off" spellcheck="false" placeholder="https://example.com/login"><button id="go">SCAN</button></div></div>
+  <div class="opts"><label><input type="checkbox" id="ai" checked> AI explanation</label>
+   <span>We never open your link. With AI on, the link (without anything after ?) is sent to our server and Google Gemini.</span></div>
+ </section>
+ <section id="res" class="res" aria-live="polite"></section>
+</main>
+<button id="bub" aria-label="Open security assistant" title="Ask a security question">&#128172;</button>
+<aside id="chat" class="shut" aria-label="Security assistant">
+ <header>ASK TRUSTLENS <button id="x" aria-label="Close">&times;</button></header>
+ <div id="msgs"></div>
+ <div id="cf"><input id="q" maxlength="1000" placeholder="e.g. I entered my password, now what?"><button id="send">Send</button></div>
+</aside>
+<script>
+const API = location.hostname.endsWith("github.io") ? "https://trustlens-xoqm.onrender.com" : "";
+const BRANDS = {sbi:["sbi.co.in","onlinesbi.sbi","onlinesbi.com"],hdfc:["hdfcbank.com"],icici:["icicibank.com"],axis:["axisbank.com"],paytm:["paytm.com"],phonepe:["phonepe.com"],irctc:["irctc.co.in"],google:["google.com","google.co.in"],microsoft:["microsoft.com","live.com","office.com"],amazon:["amazon.in","amazon.com"],flipkart:["flipkart.com"],paypal:["paypal.com"],netflix:["netflix.com"],facebook:["facebook.com"],instagram:["instagram.com"],whatsapp:["whatsapp.com"],apple:["apple.com"],adamas:["adamasuniversity.ac.in"],npci:["npci.org.in"],uidai:["uidai.gov.in"]};
+const KW = ["login","verify","secure","update","account","wallet","kyc","otp"];
+const BADTLD = [".xyz",".top",".click",".tk",".icu",".buzz",".gq",".cf"];
+const SHORT = ["bit.ly","tinyurl.com","cutt.ly","t.co","rb.gy","is.gd","goo.gl","ow.ly"];
+const $ = (id) => document.getElementById(id);
+function el(tag, cls, text){ const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; }
+const legit = (h, list) => list.some((d) => h === d || h.endsWith("." + d));
+function dist(a, b){ const d = Array.from({length:a.length+1}, (_, i) => [i]); for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i-1][j]+1, d[i][j-1]+1, d[i-1][j-1] + (a[i-1] === b[j-1] ? 0 : 1)); return d[a.length][b.length]; }
 
-    <form id="check-form" novalidate>
-      <label for="link-input">Link to check</label>
-      <input
-        id="link-input"
-        type="text"
-        placeholder="https://example.com/page"
-        autocomplete="off"
-        autocapitalize="off"
-        spellcheck="false"
-      >
-      <button type="submit">Check</button>
-    </form>
+function parse(raw){
+  const s = raw.trim();
+  if (!s) return {err:"Paste a link first."};
+  if (/^(javascript|data):/i.test(s)) return {danger:true, host:"(script)", clean:"(blocked scheme)"};
+  let u; try { u = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(s) ? s : "https://" + s); } catch (e) { return {err:"That doesn't look like a valid link."}; }
+  if (u.protocol !== "http:" && u.protocol !== "https:") return {err:"Only http and https links can be checked."};
+  const host = u.hostname.toLowerCase();
+  if (!/^[a-z0-9.-]+$/.test(host) || host.length > 253) return {err:"That doesn't look like a valid website name."};
+  return {u, host, scheme:u.protocol, raw:s, clean:u.origin + u.pathname};
+}
 
-    <section id="result" aria-live="polite" hidden></section>
+function check(p){
+  const out = []; const add = (pts, t) => out.push({pts, t});
+  if (p.danger) return {score:100, reasons:[{pts:100, t:"Uses a script/data link, which can run code instead of opening a website."}]};
+  const h = p.host, path = decodeURIComponent((p.u.pathname || "").replace(/%(?![0-9a-f]{2})/gi, "")).toLowerCase();
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(h)) add(30, "Uses a raw IP address instead of a website name.");
+  if (p.raw.includes("@")) add(25, "Contains an @ sign, which can hide the real destination.");
+  if (p.scheme === "http:") add(15, "Not encrypted (http, not https).");
+  if (h.includes("xn--")) add(25, "Uses look-alike (punycode) letters in the website name.");
+  if (h.split(".").length - 1 >= 4) add(15, "Has many dots (deeply nested subdomains).");
+  if (p.raw.length > 75) add(10, "The link is unusually long.");
+  if ((h.match(/-/g) || []).length >= 3) add(10, "The website name is stuffed with hyphens.");
+  const kws = KW.filter((k) => h.includes(k)); if (kws.length) add(Math.min(30, kws.length * 10), "Pressure words in the site name: " + kws.join(", ") + ".");
+  if (BADTLD.some((t) => h.endsWith(t))) add(10, "Ends in a cheap, often-abused domain ending.");
+  if (legit(h, SHORT)) add(15, "Link shortener: hides the real destination.");
+  if (/https?:\/\/|%3a%2f%2f/i.test(p.u.pathname + p.u.search)) add(15, "Contains another link inside it (possible redirect).");
+  const toks = (h + " " + path).split(/[^a-z0-9]+/);
+  const parts = h.split("."), n = parts.length;
+  const label = n > 2 && ["co","ac","gov","org","com","net","edu"].includes(parts[n-2]) && parts[n-1].length === 2 ? parts[n-3] : (parts[n-2] || parts[0]);
+  const norm = label.replace(/rn/g,"m").replace(/vv/g,"w").replace(/0/g,"o").replace(/1/g,"l").replace(/3/g,"e").replace(/5/g,"s");
+  let hit = false;
+  for (const [b, doms] of Object.entries(BRANDS)) {
+    if (legit(h, doms)) continue;
+    if (toks.some((t) => t === b || (b.length >= 5 && t.includes(b)))) { add(40, 'Mentions "' + b + '" but is not the real ' + doms[0] + "."); hit = true; break; }
+  }
+  if (!hit) for (const [b, doms] of Object.entries(BRANDS)) {
+    if (b.length < 5 || legit(h, doms) || label === b) continue;
+    if (norm === b || dist(label, b) <= 1) { add(60, 'Looks like a fake of "' + b + '" (real site: ' + doms[0] + ").");  break; }
+  }
+  return {score:Math.min(100, out.reduce((s, r) => s + r.pts, 0)), reasons:out};
+}
 
-    <p class="footnote">
-      TrustLens never opens your link and never sends it anywhere.
-      All checks run in your browser. A low score is not a guarantee.
-    </p>
-  </main>
+let busy = false, scans = 0;
+function level(s){ return s >= 60 ? ["high","High risk"] : s >= 30 ? ["med","Suspicious"] : ["low","Low risk"]; }
 
-  <script src="script.js"></script>
+async function post(path, body, ms){
+  const c = new AbortController(), t = setTimeout(() => c.abort(), ms);
+  try { const r = await fetch(API + path, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body), signal:c.signal});
+    let d = {}; try { d = await r.json(); } catch (e) {}
+    if (!r.ok) throw new Error(d.error || "The server returned an error (" + r.status + ").");
+    return d; } finally { clearTimeout(t); }
+}
+
+async function scan(){
+  if (busy) return; const p = parse($("u").value), res = $("res"); res.replaceChildren();
+  if (p.err) { const c = el("div", "card"); c.append(el("p", "err", p.err)); res.append(c); return; }
+  busy = true; $("go").disabled = true; scans++;
+  const r = check(p), [lv, label] = level(r.score);
+  const card = el("div", "card lvl-" + lv), top = el("div", "top"), sc = el("div", "score");
+  top.append(el("div", "verdict", label), sc); card.append(top);
+  const m = el("div", "meter"); const on = Math.round(r.score / 5);
+  for (let i = 0; i < 20; i++) { const s = el("i"); if (i < on) { s.className = "on"; s.style.animationDelay = i * 45 + "ms"; } m.append(s); }
+  card.append(m, el("p", "note", "Checked as text only. A low score is not a guarantee."));
+  const num = el("span", "", "0"); sc.append(num, el("small", "", " / 100"));
+  const t0 = performance.now(); (function tick(now){ const k = Math.min(1, (now - t0) / 700); num.textContent = Math.round(r.score * k); if (k < 1) requestAnimationFrame(tick); })(t0);
+  const al = el("div", "card"); al.append(el("h3", "", "Alerts found: " + r.reasons.length));
+  const ul = el("ul"); if (!r.reasons.length) ul.append(el("li", "note", "No warning signs matched our rules."));
+  r.reasons.forEach((x, i) => { const li = el("li"); li.style.animationDelay = 300 + i * 120 + "ms"; li.append(el("em", "", "+" + x.pts), el("span", "", x.t)); ul.append(li); });
+  al.append(ul); res.append(card, al);
+  if ($("ai").checked) await explain(p, r, res); busy = false; $("go").disabled = false;
+}
+
+async function explain(p, r, res){
+  const box = el("div", "card ai"); box.append(el("h3", "", "AI analysis"), el("div", "busy"), el("p", "note", "Gemini is analysing the link...")); res.append(box);
+  const wake = setTimeout(() => { box.lastChild.textContent = "Waking up the server (free hosting: this can take up to a minute)..."; }, 4000);
+  try {
+    const d = await post("/api/analyze", {url:p.clean, hostname:p.host, score:r.score, reasons:r.reasons.map((x) => x.t)}, 90000);
+    box.replaceChildren(el("h3", "", "AI analysis"), el("p", "", d.analysis), el("p", "", "Do this: " + d.recommendation), el("p", "note", d.caveat));
+  } catch (e) {
+    box.replaceChildren(el("h3", "", "AI analysis"), el("p", "err", e.name === "AbortError" ? "The AI took too long." : String(e.message || e)), el("p", "note", "The local result above is still valid. Try again in a minute."));
+  } finally { clearTimeout(wake); }
+}
+
+$("go").onclick = scan; $("u").onkeydown = (e) => { if (e.key === "Enter") scan(); };
+const pre = new URLSearchParams(location.search).get("url"); if (pre) { $("u").value = pre.slice(0, 2048); scan(); }
+
+const chat = $("chat"), msgs = $("msgs");
+function say(text, who){ const m = el("div", "m " + who, text); msgs.append(m); msgs.scrollTop = msgs.scrollHeight; return m; }
+say("Hi! I'm the TrustLens assistant. Ask me about scams, phishing, or what to do after a risky click.", "bot");
+function toggle(open){ chat.classList.toggle("shut", !open); if (open) $("q").focus(); }
+$("bub").onclick = () => toggle(chat.classList.contains("shut")); $("x").onclick = () => toggle(false);
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") toggle(false); });
+let asking = false;
+async function ask(){
+  const t = $("q").value.trim(); if (!t || asking) return; asking = true; $("q").value = ""; say(t, "me");
+  const d = say("", "bot"); d.className = "m bot dots"; d.append(el("span"), el("span"), el("span"));
+  try { const a = await post("/api/chat", {message:t}, 90000); d.className = "m bot"; d.textContent = a.answer; }
+  catch (e) { d.className = "m bot"; d.textContent = e.name === "AbortError" ? "That took too long. Please try again." : String(e.message || e); }
+  asking = false; msgs.scrollTop = msgs.scrollHeight;
+}
+$("send").onclick = ask; $("q").onkeydown = (e) => { if (e.key === "Enter") ask(); };
+</script>
 </body>
 </html>
