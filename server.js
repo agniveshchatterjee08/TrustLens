@@ -2,13 +2,16 @@ import express from "express";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
+import { createHash } from "node:crypto";
 import { GoogleGenAI } from "@google/genai";
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const MODEL = process.env.GEMINI_MODEL || "gemini-flash-latest";
+// Model names were checked against Google's Gemini docs on 9 Nov 2026.
+// To change them without editing code, set GEMINI_MODEL / GEMINI_FALLBACK_MODEL in Render > Environment.
+const MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
 
 // Behind Render's proxy: lets the rate limiter see each visitor's real IP
 app.set("trust proxy", 1);
@@ -53,8 +56,12 @@ function getAI() {
   return new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 }
 
-// --- Handling a busy Gemini service (503/429/500/504): retry, then fall back, then fail politely ---
-const FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || "";
+// --- Handling a busy or unreachable Gemini service ---
+// Plan: try the main model, retry once, then try the fallback model, and stop after AI_BUDGET_MS in total,
+// so the page always gets an answer well before its own 90-second limit.
+const FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || "gemini-3.8-flash";
+const AI_TIMEOUT_MS = Number(process.env.AI_TIMEOUT_MS) || 15000; // longest wait for ONE Gemini call
+const AI_BUDGET_MS = Number(process.env.AI_BUDGET_MS) || 40000;   // longest wait for everything together
 const RETRYABLE = new Set([429, 500, 503, 504]);
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -63,13 +70,23 @@ function getStatus(error) {
   return Number.isFinite(status) ? status : 0;
 }
 
-// Give up on a single Gemini call after 12 seconds (a hung call must not freeze the page)
-const ATTEMPT_MS = Number(process.env.AI_TIMEOUT_MS) || 12000;
+// "fetch failed" and similar: the server could not reach Gemini at all
+function isNetworkError(error) {
+  const cause = error && error.cause;
+  const text = [error && error.message, cause && cause.code, cause && cause.message].join(" ");
+  return /fetch failed|ECONNRESET|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|ECONNREFUSED|UND_ERR|socket hang up/i.test(text);
+}
+
+function isRetryable(error) {
+  return RETRYABLE.has(getStatus(error)) || isNetworkError(error);
+}
+
+// Gives up on one Gemini call after `ms` instead of waiting for ever
 function withTimeout(promise, ms) {
   let timer;
   const timeout = new Promise((_, reject) => {
     timer = setTimeout(() => {
-      const error = new Error("Gemini request timed out");
+      const error = new Error("The AI request timed out");
       error.status = 504;
       reject(error);
     }, ms);
@@ -80,27 +97,72 @@ function withTimeout(promise, ms) {
 async function generateWithRetry(ai, params) {
   const models = [MODEL];
   if (FALLBACK_MODEL && FALLBACK_MODEL !== MODEL) models.push(FALLBACK_MODEL);
+  const deadline = Date.now() + AI_BUDGET_MS;
   let lastError;
   for (const model of models) {
     for (let attempt = 0; attempt < 2; attempt++) {
+      const remaining = deadline - Date.now();
+      if (remaining < 1500) break; // out of time: stop trying
       try {
-        return await withTimeout(ai.models.generateContent({ ...params, model }), ATTEMPT_MS);
+        return await withTimeout(ai.models.generateContent({ ...params, model }), Math.min(AI_TIMEOUT_MS, remaining));
       } catch (error) {
         lastError = error;
-        if (!RETRYABLE.has(getStatus(error))) throw error; // e.g. bad key: fail fast
+        console.error(`Gemini call failed (${model}, try ${attempt + 1}):`, String(error.message).slice(0, 200),
+          getStatus(error) || "", (error.cause && error.cause.code) || "");
+        if (!isRetryable(error)) break; // e.g. wrong model name or bad key: go to the next model right away
         if (attempt < 1) await sleep(800);
       }
     }
   }
-  throw lastError;
+  throw lastError || new Error("The AI request timed out");
 }
 
 function sendAiError(res, error, failText) {
   if (error && error.isConfig) return res.status(503).json({ error: error.message });
-  if (RETRYABLE.has(getStatus(error))) {
+  if (isRetryable(error)) {
     return res.status(503).json({ error: "The AI service is busy right now. The local checks above are still valid. Please try again in a minute." });
   }
   return res.status(502).json({ error: failText });
+}
+
+// --- Remember recent AI explanations (in memory only, cleared on restart; the key is a hash, not the link) ---
+const CACHE_TTL_MS = 60 * 60 * 1000;
+const CACHE_MAX = 200;
+const aiCache = new Map();
+
+function cacheGet(key) {
+  const hit = aiCache.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.at > CACHE_TTL_MS) { aiCache.delete(key); return null; }
+  return hit.value;
+}
+
+function cacheSet(key, value) {
+  if (aiCache.size >= CACHE_MAX) aiCache.delete(aiCache.keys().next().value);
+  aiCache.set(key, { value, at: Date.now() });
+}
+
+// --- If the AI cannot answer, say so honestly and still explain the local findings ---
+function localExplanation(hostname, score, reasons) {
+  const findings = (Array.isArray(reasons) ? reasons : [])
+    .filter((r) => typeof r === "string")
+    .slice(0, 6)
+    .map((r) => r.replace(/[.\s]+$/, "").slice(0, 200));
+  const host = typeof hostname === "string" && hostname ? hostname.slice(0, 253) : "this link";
+  const n = Number.isFinite(score) ? score : 0;
+  let recommendation;
+  if (n >= 60) recommendation = "Do not open this link or enter any password or OTP. If you need the service, type its official address yourself or use its official app.";
+  else if (n >= 30) recommendation = "Be careful: do not enter passwords or OTPs here. Open the official website or app by typing the address yourself.";
+  else recommendation = "Stay careful anyway: check who sent the link, and never share an OTP or password through a link.";
+  const found = findings.length
+    ? `the local checks found ${findings.length} warning sign${findings.length === 1 ? "" : "s"} for ${host}: ${findings.join("; ")}.`
+    : `the local checks found no warning signs in the text of ${host}, which does not guarantee the link is trustworthy.`;
+  return {
+    analysis: `Automatic explanation (the AI service is unavailable right now): ${found} This is based only on the link text; the site was not opened.`,
+    recommendation,
+    caveat: "Written automatically from the local checks because the AI service could not be reached.",
+    aiUnavailable: true
+  };
 }
 
 app.post("/api/analyze", async (req, res) => {
@@ -111,6 +173,11 @@ app.post("/api/analyze", async (req, res) => {
         !Number.isFinite(score) || !Array.isArray(reasons)) {
       return res.status(400).json({ error: "Invalid URL analysis input." });
     }
+
+    // Same link and same findings seen recently: reuse the saved explanation
+    const cacheKey = createHash("sha256").update(JSON.stringify([url, score, reasons])).digest("hex");
+    const cached = cacheGet(cacheKey);
+    if (cached) return res.json(cached);
 
     const ai = getAI();
     const prompt = `
@@ -144,14 +211,18 @@ Do not call a URL safe or malicious with certainty based only on its text. Do no
     let parsed;
     try { parsed = JSON.parse(response.text); }
     catch { throw new Error("The AI returned an unreadable response. Please try again."); }
-    return res.json({
+    const result = {
       analysis: String(parsed.analysis || "").slice(0, 1200),
       recommendation: String(parsed.recommendation || "").slice(0, 500),
       caveat: String(parsed.caveat || "").slice(0, 300)
-    });
+    };
+    cacheSet(cacheKey, result);
+    return res.json(result);
   } catch (error) {
-    console.error("AI analysis error:", String(error.message).slice(0, 300));
-    return sendAiError(res, error, "AI analysis failed. Check your API key and connection, then try again.");
+    console.error("AI analysis error:", String(error.message).slice(0, 300), error.cause);
+    // The page always gets something useful, clearly labelled as automatic
+    const body = req.body || {};
+    return res.json(localExplanation(body.hostname, body.score, body.reasons));
   }
 });
 
@@ -167,7 +238,7 @@ app.post("/api/chat", async (req, res) => {
     });
     return res.json({ answer: String(response.text || "I couldn't generate an answer. Please try again.").slice(0, 2500) });
   } catch (error) {
-    console.error("AI chat error:", String(error.message).slice(0, 300));
+    console.error("AI chat error:", String(error.message).slice(0, 300), error.cause);
     return sendAiError(res, error, "The AI assistant is temporarily unavailable. Please try again.");
   }
 });
