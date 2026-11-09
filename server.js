@@ -63,18 +63,32 @@ function getStatus(error) {
   return Number.isFinite(status) ? status : 0;
 }
 
+// Give up on a single Gemini call after 12 seconds (a hung call must not freeze the page)
+const ATTEMPT_MS = Number(process.env.AI_TIMEOUT_MS) || 12000;
+function withTimeout(promise, ms) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      const error = new Error("Gemini request timed out");
+      error.status = 504;
+      reject(error);
+    }, ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 async function generateWithRetry(ai, params) {
   const models = [MODEL];
   if (FALLBACK_MODEL && FALLBACK_MODEL !== MODEL) models.push(FALLBACK_MODEL);
   let lastError;
   for (const model of models) {
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        return await ai.models.generateContent({ ...params, model });
+        return await withTimeout(ai.models.generateContent({ ...params, model }), ATTEMPT_MS);
       } catch (error) {
         lastError = error;
         if (!RETRYABLE.has(getStatus(error))) throw error; // e.g. bad key: fail fast
-        if (attempt < 2) await sleep(800 * 2 ** attempt);    // wait 0.8s, then 1.6s
+        if (attempt < 1) await sleep(800);
       }
     }
   }
@@ -136,7 +150,7 @@ Do not call a URL safe or malicious with certainty based only on its text. Do no
       caveat: String(parsed.caveat || "").slice(0, 300)
     });
   } catch (error) {
-    console.error("AI analysis error:", String(error.message).slice(0, 300), error.cause);
+    console.error("AI analysis error:", String(error.message).slice(0, 300));
     return sendAiError(res, error, "AI analysis failed. Check your API key and connection, then try again.");
   }
 });
