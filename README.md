@@ -103,7 +103,7 @@ The brand list covers 20 popular Indian and global brands. It is easy to extend 
 | | |
 |---|---|
 | **Live app** | https://trustlens-xoqm.onrender.com |
-| **Demo video** | |
+| **Demo video** |https://youtu.be/1O9EZTOwt_Y?si=2kL9ZUn0tdtChGG3 |
 | **Source code** | https://github.com/agniveshchatterjee08/TrustLens |
 
 > The app runs on a free hosting plan. If nobody has used it for a while, the first load can take up to a minute while the server wakes up.
